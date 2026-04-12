@@ -1,0 +1,125 @@
+\documentclass[12pt, a4paper]{article}
+
+% --- Packages requis ---
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[english]{babel}
+\usepackage{setspace}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{natbib}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{hyperref}
+
+% --- Méta-données ---
+\title{\textbf{Passive Ownership and Market Efficiency:} \\ \large The Impact of Index Inclusions on Stock Synchronicity in Europe}
+\author{Ethan Benchetrit}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\onehalfspacing
+
+% ============================================================
+\section{Introduction}
+% ============================================================
+
+The past two decades have seen a structural reallocation of equity capital on a scale with few historical precedents. Passive investment vehicles, including index funds and exchange-traded funds (ETFs), now account for a majority of U.S.\ equity fund assets and a rapidly growing share of European institutional ownership. As of 2024, assets tracking passive strategies exceed \$15 trillion globally. The macroeconomic benefits attributed to this shift (lower costs, broader household participation, and improved diversification) are well understood. Less understood, and increasingly contested, is what the shift implies for the informational content of stock prices. This paper investigates whether inclusions into the STOXX Europe 600 index alter two closely related measures of price efficiency: stock return synchronicity and idiosyncratic return volatility.\\
+
+The theoretical case for a detrimental effect rests on the mechanism Barberis, Shleifer, and Wurgler (2005) label friction-based comovement. When a stock is added to an index, ETF managers must hold it as part of a basket, buying and selling in response to aggregate fund flows rather than firm-specific news. Supply and demand for the stock therefore become partially decoupled from its fundamentals, and its price co-moves with the rest of the index regardless of idiosyncratic information. Morck, Yeung, and Yu (2000) established that the $R^2$ from a market-model regression (stock return synchronicity) is an inverse proxy for price informativeness: markets where prices fully incorporate firm-specific information exhibit low synchronicity, because individual stocks respond to their own news rather than moving in lock-step with the index. Under the Barberis, Shleifer, and Wurgler (2005) channel, passive ownership drives synchronicity upward and dulls the precision with which prices aggregate dispersed private signals.\\
+
+Several empirical studies, primarily based on U.S.\ data, lend support to this view. Israeli, Lee, and Sridharan (2017) document that higher ETF ownership is associated with reduced analyst following, wider bid-ask spreads, and a lower probability of informed trading, a pattern consistent with deteriorating price discovery. Ben-David, Franzoni, and Moussawi (2018) show that ETF arbitrage transmits non-fundamental liquidity shocks from the ETF layer to the underlying securities, generating volatility unrelated to cash-flow news. The evidence is not, however, uniform. Glosten, Harris, and Kim (2020) argue that ETFs facilitate cheap hedging of systematic risk, which encourages more aggressive informed position-taking at the stock level; in their model, passive ownership improves the informational efficiency of individual securities. The empirical question of which channel dominates is therefore unresolved.\\
+
+European equity markets offer a distinct and largely untested setting for this debate. Trading in Europe is fragmented across primary national exchanges and multiple multilateral trading facilities, complicating the arbitrage pipeline that connects ETF prices to their underlying baskets. Order books are on average thinner than in U.S.\ markets of comparable capitalisation, which may amplify the non-fundamental volatility channel. Regulatory changes under MiFID II, which unbundled research payments from execution commissions, have also altered the incentives for producing firm-specific information, a confound absent from U.S.\ studies. Extrapolating North American findings to the European context is therefore methodologically precarious, and direct evidence for the continent remains scarce.\\
+
+This paper fills that gap by exploiting monthly reconstitutions of the STOXX Europe 600 index as natural experiments. Index additions trigger immediate and mechanical purchases by funds tracking the benchmark, generating exogenous variation in passive ownership that is independent of contemporaneous changes in firm fundamentals. For each addition event, a matched control firm is selected from the pool of non-constituents using propensity score matching on pre-event size, momentum, and return volatility, and the causal effect of index inclusion is estimated via a stacked difference-in-differences design with entity and time fixed effects. The sample spans 302 addition and 295 deletion events identified across 26 monthly reconstitution snapshots, with price histories extending back to January 2013 to support pre-event estimation.\\
+
+The main results present a consistent null for the broad index. The difference-in-differences coefficient for synchronicity is $\hat{\beta} = -0.115$ (clustered $t$-statistic, $p = 0.174$), and the coefficient for idiosyncratic volatility is $\hat{\beta} = +0.000263$ ($p = 0.605$). Neither estimate is distinguishable from zero at conventional significance levels. A randomisation-inference placebo test, in which event dates are shifted to the pre-event window across 500 iterations, yields an empirical $p$-value of 0.200, confirming that the true coefficient is unremarkable relative to its null distribution. In a sub-sample restricted to EURO STOXX 50 reconstitutions (where the ownership shock is more concentrated) idiosyncratic volatility declines significantly following inclusion ($\hat{\beta} = -0.000991$, $p = 0.040$), a pattern consistent with passive-flow price stabilisation rather than information improvement.\\
+
+This paper contributes to three strands of literature. First, it extends the evidence on passive investing beyond the U.S.\ setting; to our knowledge it is the first study to apply a matched difference-in-differences design to STOXX Europe reconstitutions using a monthly panel of efficiency metrics. Second, the null result for the broad sample qualifies Israeli, Lee, and Sridharan (2017): in European large-cap markets, where active analyst coverage is already dense, the arrival of passive flows does not appear to crowd out price discovery at a statistically detectable magnitude over a twelve-month horizon. Third, the contrast between the STOXX 600 null and the EURO STOXX 50 result suggests that the informativeness effects of passive investing increase with the concentration of the ownership shock, a dimension that has received limited attention in the existing literature.\\
+
+The remainder of this paper is organized as follows. Section~2 describes the data, variable construction, and identification strategy. Section~3 presents the main empirical results. Section~4 reports robustness tests, including the placebo exercise, the deletion-event analysis, and the EURO STOXX 50 sub-sample. Section~5 concludes.\\
+
+% ============================================================
+\section{Data and Methodology}
+\label{sec:methodology}
+% ============================================================
+
+The identification strategy relies on three building blocks: a sample of reconstitution events constructed from index provider data, a monthly panel of price-efficiency measures estimated from adjusted closing prices, and a matched comparison group assembled via propensity score matching. The following subsections describe each component and the econometric models applied to them.\\
+
+% ============================================================
+\subsection{Data and Sample Construction}
+\label{sec:data}
+% ============================================================
+
+The primary source of institutional data is the set of monthly constituent files published by STOXX Ltd.\ for the STOXX Europe 600 index. Each file is a cross-sectional snapshot of the full ranked universe at one rebalancing date, carrying for every security its current-period rank, previous-period rank, ISIN, Reuters Instrument Code, company name, country of incorporation, and current index-membership status. The consecutive structure of the snapshots, with each file carrying both a current and a lagged rank, makes it possible to identify rank transitions directly, without constructing lagged variables from successive cross-sections. The sample comprises 26 monthly snapshots spanning January 2, 2024 through February 2, 2026.\\
+
+Index reconstitution events are defined from rank transitions within these snapshots. Let $r^F_{i,t}$ and $r^P_{i,t}$ denote the final and previous rank of firm $i$ in snapshot $t$, and let $K$ denote the index size threshold. An addition event is recorded when the firm crosses from outside to inside the index,
+\begin{equation}
+    \text{ADD}_{i,t} = \mathbf{1}\!\left[ r^F_{i,t} \leq K \;\wedge\; r^P_{i,t} > K \right], \label{eq:add}
+\end{equation}
+and a deletion event is recorded when the reverse transition occurs,
+\begin{equation}
+    \text{DELETE}_{i,t} = \mathbf{1}\!\left[ r^P_{i,t} \leq K \;\wedge\; r^F_{i,t} > K \right]. \label{eq:delete}
+\end{equation}
+Records for which either rank field is missing are excluded from event detection, as they typically correspond to initial public offerings, delistings, or reporting gaps; retaining them would generate spurious events when a firm first appears in the universe. Applying this criterion across the 26 snapshots yields 302 addition events and 295 deletion events at $K = 600$. The EURO STOXX 50 sub-sample analysis described in Section~4 uses the same detection logic with $K = 50$.\\
+
+Price data are sourced from Yahoo Finance, covering January 1, 2013 through February 28, 2026, a thirteen-year window that ensures at least two full years of pre-event price history for every reconstitution in the sample. For each firm-date pair, the split- and dividend-adjusted closing price and unadjusted trading volume are collected. The control universe is restricted to non-constituent tickers with at least twelve consecutive months of uninterrupted price history, ensuring a robust pre-event estimation window for all candidate matches. The STOXX Europe 600 Total Return index serves as the market return proxy throughout. After merging price and snapshot data and requiring a minimum observation count suitable for monthly regression estimation, the panel contains approximately 130,940 firm-month observations across 981 unique tickers.\\
+
+% ============================================================
+\subsection{Variable Construction}
+\label{sec:variables}
+% ============================================================
+
+The outcome variables are estimated from daily log returns. For firm $i$ on calendar date $d$, the daily log return is $r_{i,d} = \ln(P^{\text{adj}}_{i,d} / P^{\text{adj}}_{i,d-1})$, where $P^{\text{adj}}_{i,d}$ is the adjusted closing price. For each firm-month pair $(i,t)$, a one-factor market model is estimated by ordinary least squares on the $n_{i,t}$ paired observations of daily stock and market returns within the calendar month:
+\begin{equation}
+    r_{i,d} = \alpha_i + \beta_i \, r_{m,d} + \varepsilon_{i,d}, \quad d \in \mathcal{M}_t, \label{eq:market_model}
+\end{equation}
+where $r_{m,d}$ is the daily log return on the STOXX Europe 600 Total Return index. Firm-month cells with fewer than 15 paired observations are set to missing and excluded from all subsequent analysis. The model is estimated separately for each firm-month, so that parameters are allowed to evolve over time rather than being constrained to a common pre-event beta.\\
+
+The primary outcome variable, \textit{synchronicity}, is defined as the logistic transformation of the monthly $R^2$ from equation~\eqref{eq:market_model}, following \citet{roll1988r2} and \citet{morck2000information}:
+\begin{equation}
+    \Psi_{i,t} = \ln\!\left(\frac{R^2_{i,t}}{1 - R^2_{i,t}}\right). \label{eq:synchronicity}
+\end{equation}
+Higher values of $\Psi_{i,t}$ indicate that daily return variation is more heavily driven by the market factor and less by firm-specific news, which \citet{morck2000information} interpret as lower price informativeness. The transformation maps $R^2 \in (0,1)$ onto the real line and yields a more symmetric distribution amenable to linear estimation; $R^2$ is clipped to $[0.001, 0.999]$ before applying equation~\eqref{eq:synchronicity}, a precaution that affects fewer than 0.1\% of firm-month observations. The second outcome variable, \textit{idiosyncratic volatility}, is the sample standard deviation of the OLS residuals from equation~\eqref{eq:market_model}:
+\begin{equation}
+    \sigma^{\text{idio}}_{i,t} = \left(\frac{1}{n_{i,t}-1}\sum_{d \in \mathcal{M}_t} \hat{\varepsilon}_{i,d}^2\right)^{1/2}. \label{eq:idiovol}
+\end{equation}
+A decline in $\sigma^{\text{idio}}_{i,t}$ after index entry is consistent with passive-flow price stabilisation; an increase could reflect either improved information production or an influx of noise trading.\\
+
+Two time-varying control variables absorb the mechanical liquidity changes associated with index membership. The Amihud (2002) illiquidity ratio is the monthly average daily price impact per unit of currency volume,
+\begin{equation}
+    \text{ILLIQ}_{i,t} = \frac{1}{n_{i,t}}\sum_{d \in \mathcal{M}_t}\frac{|r_{i,d}|}{P^{\text{adj}}_{i,d} \times V_{i,d}} \times 10^6, \label{eq:amihud}
+\end{equation}
+where $V_{i,d}$ is the number of shares traded on day $d$ and the scaling factor converts the ratio into a more interpretable magnitude. Monthly average daily trading volume serves as a complementary proxy for trading activity. Index inclusion directly lowers illiquidity and raises turnover independently of any informational effect; omitting these controls would conflate the price-discovery channel with the general capital-flow impact \citep{chen2004breadth}.\\
+
+Three pre-event covariates are constructed for propensity score matching. Log market capitalisation is approximated as the natural logarithm of the product of the last available adjusted price and the mean daily volume over the 365 calendar days preceding the event, a measure that is consistently computable from the available data and carries high rank correlation with actual market capitalisation \citep{fama1993common}. Twelve-month cumulative log return (momentum) controls for the tendency of recent outperformers to be promoted to the index as their capitalisation rises \citep{jegadeesh1993returns}. Pre-event volatility, the standard deviation of daily log returns over the same 365-day window, parallels the outcome variable and ensures that any post-event divergence in $\sigma^{\text{idio}}_{i,t}$ reflects the treatment rather than pre-existing dispersion differences \citep{dasgupta2010price}. Only tickers with at least 200 valid observations in the pre-event window enter the matching pool for a given event. All three covariates are standardised to zero mean and unit variance within each event's candidate pool before propensity score estimation.\\
+
+% ============================================================
+\subsection{Identification Strategy}
+\label{sec:identification}
+% ============================================================
+
+A naïve comparison of added firms to non-constituents would be contaminated by selection: the STOXX 600 admission criteria (principally market capitalisation and liquidity) create systematic pre-treatment differences between added and non-added firms that independently drive both synchronicity and idiosyncratic volatility. Propensity score matching \citep{rosenbaum1983central} addresses this by constructing a comparison group of non-constituent firms that closely resembles the treated cohort on observable pre-event dimensions. For each addition event, the probability of treatment is estimated by a penalty-free logistic regression on the three standardised pre-event covariates, using all non-constituent firms with sufficient price history as the candidate pool. The nearest-neighbour control is the candidate firm whose estimated propensity score is closest to the treated firm's score, subject to the constraint that the absolute score difference falls within a caliper of $c = 0.01$. Matching is performed without replacement, so each control firm may serve as a comparator in at most one pair. Of the 201 addition events with sufficient pre-event price history, 196 are retained after this criterion, a 97.5\% match rate; the mean absolute propensity-score distance across accepted pairs is 0.000156, indicating tight covariate proximity in the final sample.\\
+
+The main causal estimates are obtained from a stacked difference-in-differences design \citep{cengiz2019effect, baker2022how}. This approach constructs a separate clean comparison panel for each matched pair (covering a symmetric twelve-month window before and after the event) and stacks them into a pooled dataset. The stacked structure avoids the biases documented in two-way fixed-effects estimators under heterogeneous and staggered treatment timing by \citet{callaway2021difference} and \citet{goodman2021difference}: because each pair has its own entity identifiers, the within-pair fixed effects are fully event-specific and never contaminated by outcomes from unrelated cohorts. The main estimating equation is:
+\begin{equation}
+    Y_{i,t} = \alpha_i + \lambda_t + \beta \cdot (\text{Treat}_{i} \times \text{Post}_{i,t}) + \gamma_1 \,\text{ILLIQ}_{i,t} + \gamma_2 \,\text{TO}_{i,t} + \varepsilon_{i,t}, \label{eq:did}
+\end{equation}
+where $Y_{i,t}$ is either synchronicity $\Psi_{i,t}$ or idiosyncratic volatility $\sigma^{\text{idio}}_{i,t}$; $\alpha_i$ are entity fixed effects that absorb all time-invariant within-pair heterogeneity; $\lambda_t$ are relative-time fixed effects that absorb common shocks at each event-relative month; $\text{Treat}_i$ equals one for the added firm and zero for its matched control; and $\text{Post}_{i,t}$ equals one from the event month onward. The coefficient $\beta$ is the average treatment effect on the treated: the differential change in the outcome experienced by added firms relative to matched controls from the pre-period to the post-period. Standard errors are clustered at the entity level to allow for arbitrary serial correlation within each firm-event unit over time.\\
+
+The plausibility of the parallel trends assumption is assessed through a dynamic event-study specification, in which the single post-event indicator is replaced by a full set of relative-time interaction dummies,
+\begin{equation}
+    Y_{i,t} = \alpha_i + \lambda_t + \sum_{\tau \neq -1} \beta_\tau \cdot \left(\text{Treat}_{i} \times \mathbf{1}[\tau_{i,t} = \tau]\right) + \varepsilon_{i,t}, \quad \tau \in \{-6, \ldots, +6\}, \label{eq:event_study}
+\end{equation}
+where $\tau_{i,t}$ is the number of months relative to the event date, and the period $\tau = -1$ serves as the reference category. Pre-event coefficients $\{\hat{\beta}_\tau\}_{\tau < 0}$ that are statistically indistinguishable from zero support the assumption that treated and control firms were on parallel trajectories prior to index entry; a diverging pre-trend would suggest that the matched pairs were already on different informational paths, which would threaten the causal interpretation of $\hat{\beta}$ in equation~\eqref{eq:did}.\\
+
+Three robustness exercises complement the baseline analysis. First, a randomisation-inference placebo test evaluates whether $\hat{\beta}$ could arise by chance under the null of no treatment effect: for each of 500 independent permutations, placebo event dates are drawn uniformly from the ten-month pre-event interval $[t_0 - 12, t_0 - 2]$ months, the stacked panel is reconstructed around these artificial dates, and equation~\eqref{eq:did} is re-estimated. The resulting empirical distribution of placebo coefficients provides a finite-sample reference distribution that does not rely on asymptotic approximations. Second, the full pipeline is replicated on the sample of deletion events, for which the ownership shock runs in the reverse direction; finding a symmetric response would be consistent with a genuine informational mechanism, while a null result for deletions alongside a non-null result for additions would suggest a one-directional liquidity or visibility story. Third, the EURO STOXX 50 sub-sample is analysed by applying the same procedure with $K = 50$ and the EURO STOXX 50 Total Return index as the market proxy, yielding 36 addition and 35 deletion events and 20 successfully matched addition pairs. This higher-visibility benchmark generates a more concentrated ownership shock per event and permits an assessment of whether the main null result is specific to the broad, diversified STOXX 600 universe.\\
+
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+\end{document}

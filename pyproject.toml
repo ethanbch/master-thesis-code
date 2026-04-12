@@ -1,0 +1,18 @@
+[project]
+name = "code"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "pandas",
+    "numpy",
+    "pyarrow",
+    "yfinance",
+    "statsmodels",
+    "scikit-learn",
+    "linearmodels",
+    "matplotlib",
+    "kaleido>=1.2.0",
+    "PyPDF2",
+]

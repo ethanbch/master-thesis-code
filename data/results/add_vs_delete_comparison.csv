@@ -1,0 +1,3 @@
+Event Type,N_pairs,β_DiD_Synch,p_Synch,β_DiD_IVol,p_IVol
+ADD (inclusion),196,-0.115,0.174,0.0003,0.605
+DELETE (exclusion),174,-0.1183,0.1959,-0.0023,0.0762

@@ -1,0 +1,3 @@
+Event Type,N_pairs,β_DiD_Synch,p_Synch,β_DiD_IVol,p_IVol
+ADD (SX50 proxy inclusion),(see matched_pairs.csv),0.255172401829915,0.2789611624354589,-0.0009913816232999,0.0397766233860077
+DELETE (SX50 proxy exclusion),23,0.1359,0.5874,-0.0001,0.9378
