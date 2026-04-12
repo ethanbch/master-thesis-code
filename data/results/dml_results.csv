@@ -1,0 +1,2 @@
+outcome,method,n_obs,n_treated,n_folds,n_rep,theta,se,pval,ci_lower_95,ci_upper_95,significance
+Synchronicity,DoubleML_PLR,1268,636,5,5,0.11866457885906431,0.06071372359452215,0.050642881398538474,-0.00025059592462835234,0.2376612587978819,* (10%)

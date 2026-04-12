@@ -7,6 +7,7 @@ Input:  data/intermediate/features_at_event.csv
 Output: data/results/matched_pairs.csv
 """
 
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -14,6 +15,9 @@ import pandas as pd
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 
+warnings.filterwarnings(
+    "ignore", message="Setting penalty=None will ignore the C and l1_ratio parameters"
+)
 ROOT = Path(__file__).resolve().parents[2]
 
 INPUT_PATH = ROOT / "data" / "intermediate" / "features_at_event.csv"
@@ -74,7 +78,7 @@ for i, row in unique_events.iterrows():
 
     # ── Fit logistic regression ─────────────────────────────
     try:
-        lr = LogisticRegression(penalty=None, solver="lbfgs", max_iter=1000)
+        lr = LogisticRegression(C=float("inf"), solver="lbfgs", max_iter=1000)
         lr.fit(X_scaled, y_all)
         scores = lr.predict_proba(X_scaled)[:, 1]
     except Exception as e:

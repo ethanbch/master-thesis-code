@@ -10,44 +10,61 @@ Output: data/intermediate/events.csv (updated with ric column),
         data/intermediate/missing_add_tickers.csv
 """
 
+import re
 from pathlib import Path
 
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[2]
 
+
 # ----------------------------------------------------------
 # 1. DEFINE REMAPPING (RIC -> Yahoo Finance)
 # ----------------------------------------------------------
-TICKER_REMAP = {
-    # Swiss : .S -> .SW
-    **{
-        t: t.replace(".S", ".SW")
-        for t in [
-            "AMS.S",
-            "BANB.S",
-            "BCHN.S",
-            "DKSH.S",
-            "DOKA.S",
-            "EFGN.S",
-            "HUBN.S",
-            "IFCN.S",
-            "INRN.S",
-            "MOBN.S",
-            "SFSN.S",
-            "SUN.S",
-            "VATN.S",
-            "VZN.S",
-            "COTNE.S",
-            "HUBN.S",
-        ]
-    },
-    # Irish : .I -> .IR
-    "GL9.I": "GL9.IR",
-    # Austrian : .VI -> .VIE
-    "VOES.VI": "VOES.VI",
-    "VIGR.VI": "VIG.VI",
-    # German manual remaps
+
+
+def _apply_regex_remaps(ticker: str) -> str:
+    """Applique les règles de traduction RIC → Yahoo Finance par regex.
+
+    Règles :
+    - Suisse : .S → .SW
+    - Nordiques : classe B/A avant .ST, .CO, .HE, .OL (ex: BETSb.ST → BETS-B.ST)
+    """
+    if not isinstance(ticker, str):
+        return ticker
+    # Suisse : .S → .SW
+    ticker = re.sub(r"\.S$", ".SW", ticker)
+    # Nordiques : classe B/A juste avant le suffixe de bourse
+    ticker = re.sub(
+        r"([A-Za-z])([BbAa])\.(ST|CO|HE|OL)$",
+        lambda m: f"{m.group(1)}-{m.group(2).upper()}.{m.group(3)}",
+        ticker,
+    )
+    return ticker
+
+
+MANUAL_REMAP = {
+    # France
+    "RENA.PA": "RNO.PA",
+    "AIRP.PA": "AI.PA",
+    "CARR.PA": "CA.PA",
+    "PUBP.PA": "PUB.PA",
+    "ERMT.PA": "ERA.PA",
+    "EPED.PA": "FGR.PA",  # Faurecia → Forvia
+    "AIRF.PA": "AF.PA",  # Air France-KLM
+    "LTEN.PA": "ATE.PA",  # Alten
+    "JCDX.PA": "DEC.PA",  # JCDecaux
+    "NEXI.PA": "NXI.PA",  # Nexity
+    "BICP.PA": "BB.PA",  # Société BIC
+    "SOIT.PA": "SOI.PA",  # Soitec
+    "SOPR.PA": "SOP.PA",  # Sopra Steria
+    "RUBF.PA": "RUI.PA",  # Rubis
+    "NEXS.PA": "NEX.PA",  # Nexans
+    "ISOS.PA": "IPS.PA",  # Ipsos
+    "VLLP.PA": "VK.PA",  # Vallourec
+    "UBIP.PA": "UBI.PA",  # Ubisoft
+    "VLOF.PA": "FR.PA",  # Valeo
+    # Allemagne
     "SAPG.DE": "SAP.DE",
     "BMWG.DE": "BMW.DE",
     "CBKG.DE": "CBK.DE",
@@ -72,24 +89,75 @@ TICKER_REMAP = {
     "JENGN.DE": "JEN.DE",
     "FRAG.DE": "FRA.DE",
     "MORG.DE": "MOR.DE",
+    "BASFN.DE": "BAS.DE",
+    "BASFn.DE": "BAS.DE",
+    "DPWGN.DE": "DHL.DE",
+    "DPWGn.DE": "DHL.DE",
+    "LHAG.DE": "LHA.DE",
+    "SOWG.DE": "SOW.DE",
+    "DUEG.DE": "DUE.DE",
+    "DEQGn.DE": "DEQ.DE",
+    "WCHG.DE": "WCH.DE",  # Wacker Chemie
+    "EVDG.DE": "EVD.DE",  # CTS Eventim
+    "NEKG.DE": "NEM.DE",  # Nemetschek
+    "RAAG.DE": "RAA.DE",  # Rational AG
+    "COKG.DE": "COK.DE",  # Cancom
+    "HYQGn.DE": "HYQ.DE",  # Hypoport
+    "TLXGn.DE": "TLX.DE",  # Talanx
+    "S92G.DE": "S92.DE",  # SMA Solar Technology
+    "GLJn.DE": "GLJ.DE",  # Grenke
+    "FNTGn.DE": "FNTN.DE",  # Freenet
+    # Grande-Bretagne
+    "WISEa.L": "WISE.L",  # Wise (class A)
+    "GFTU_u.L": "GFTU.L",  # Grafton Group (units)
+    "ECM.L": "RS1.L",  # Electrocomponents → RS Group
+    "TCAPI.L": "TCAP.L",  # TP ICAP
+    "VTYV.L": "VTY.L",  # Vistry Group
+    "SCTS.L": "SCT.L",  # Softcat
+    "CBRO.L": "CBG.L",  # Close Brothers Group
+    "VCTX.L": "VCT.L",  # Victrex
+    "BEZG.L": "BEZ.L",  # Beazley
+    "BALF.L": "BBY.L",  # Balfour Beatty
+    "TRNT.L": "TRN.L",  # Trainline
+    "SHCS.L": "SHC.L",  # Shaftesbury Capital
+    "HAYS.L": "HAS.L",  # Hays
+    "PLUSP.L": "PLUS.L",  # Plus500
+    "JUSTJ.L": "JUST.L",  # Just Group
+    "PAGPA.L": "PAG.L",  # Paragon Banking Group
+    "PAFR.L": "PAF.L",  # Pan African Resources
+    "HOCM.L": "HOC.L",  # Hochschild Mining
+    "OSBO.L": "OSB.L",  # OSB Group (ex-OneSavings Bank)
+    "DC.L": "CURY.L",  # Dixons Carphone → Currys
+    "GPOR.L": "GPE.L",  # Great Portland Estates
+    # Irlande
+    "GL9.I": "GL9.IR",
+    "CRH.I": "CRH.L",
+    # Autriche
+    "VIGR.VI": "VIG.VI",
+    # Luxembourg
+    "SESFd.PA": "SESG.PA",
 }
 
 # ----------------------------------------------------------
 # 2. LOAD DATA AND APPLY REMAP
 # ----------------------------------------------------------
 data_dir = ROOT / "data" / "intermediate"
-events = pd.read_csv(data_dir / "events.csv")
+events = pd.read_csv(data_dir / "events.csv", dtype={"ticker": str, "ric": str})
 prices = pd.read_parquet(data_dir / "prices_raw.parquet")
 panel = pd.read_parquet(data_dir / "panel_composition.parquet")
 
-# Preserve original RIC, apply remap to ticker column
+# Supprimer les tickers artefacts (NaN ou purement numériques, ex: "1.7")
+events = events.dropna(subset=["ticker"])
+events = events[~events["ticker"].str.fullmatch(r"\d+(\.\d+)?")].reset_index(drop=True)
+
+# Preserve original RIC, apply manual remap then regex rules
 if "ric" not in events.columns:
     events["ric"] = events["ticker"]
-events["ticker"] = events["ric"].replace(TICKER_REMAP)
+events["ticker"] = events["ric"].replace(MANUAL_REMAP).apply(_apply_regex_remaps)
 
 if "ric" not in panel.columns:
     panel["ric"] = panel["ticker"]
-panel["ticker"] = panel["ric"].replace(TICKER_REMAP)
+panel["ticker"] = panel["ric"].replace(MANUAL_REMAP).apply(_apply_regex_remaps)
 
 # Save updated events
 events.to_csv(data_dir / "events.csv", index=False)

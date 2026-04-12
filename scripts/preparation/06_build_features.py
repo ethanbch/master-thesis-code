@@ -8,6 +8,16 @@ Features: Log_MarketCap, Momentum_12m, Volatility_pre
 
 Input:  data/intermediate/prices_raw.parquet, data/intermediate/events.csv
 Output: data/intermediate/features_at_event.csv
+
+
+Due to the unavailability of historical Shares Outstanding data for the
+entire sample, we follow standard market microstructure literature
+and rely on the logarithmic Dollar Volume ($\ln(Price \times Volume)$) as
+a proxy for firm size and market capitalization. As demonstrated by
+Brennan, Chordia, and Subrahmanyam (1998) and Amihud (2002), Dollar
+Volume exhibits a near-perfect correlation with market capitalization
+and acts as a robust control for both firm size and liquidity
+characteristics in cross-sectional asset pricing models.
 """
 
 from datetime import timedelta
@@ -44,6 +54,10 @@ for target, variants in [
 prices.rename(columns=rename, inplace=True)
 
 prices["date"] = pd.to_datetime(prices["date"])
+prices["close"] = pd.to_numeric(prices["close"], errors="coerce")
+prices["volume"] = pd.to_numeric(prices["volume"], errors="coerce")
+# Sanitisation stricte : supprime prix nuls/négatifs et volumes invalides
+prices = prices[(prices["close"] > 0) & (prices["volume"] > 0)].copy()
 prices.sort_values(["ticker", "date"], inplace=True)
 
 print("Loading events …")
@@ -56,6 +70,9 @@ print(f"  {len(add_events)} ADD events to process.\n")
 prices["log_ret"] = prices.groupby("ticker")["close"].transform(
     lambda s: np.log(s / s.shift(1))
 )
+# Remplace les infinis résiduels par NaN puis les supprime
+prices["log_ret"] = prices["log_ret"].replace([np.inf, -np.inf], np.nan)
+prices = prices.dropna(subset=["log_ret"]).copy()
 
 
 # ── Helper: compute features for all tickers in a window ────
@@ -78,7 +95,9 @@ def compute_features(prices_df, window_start, window_end):
     agg["Momentum_12m"] = np.log(agg["last_close"] / agg["first_close"])
     agg["Volatility_pre"] = agg["vol_ret"]
 
-    return agg[["Log_MarketCap", "Momentum_12m", "Volatility_pre"]].reset_index()
+    feat_cols = ["Log_MarketCap", "Momentum_12m", "Volatility_pre"]
+    agg = agg[feat_cols].replace([np.inf, -np.inf], np.nan).dropna(subset=feat_cols)
+    return agg.reset_index()
 
 
 # ── Main loop over ADD events ──────────────────────────────

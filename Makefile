@@ -26,11 +26,13 @@ analysis:
 	$(PYTHON) scripts/analysis/01_matching.py
 	$(PYTHON) scripts/analysis/02_did_estimation.py
 	$(PYTHON) scripts/analysis/03_event_study.py
+	$(PYTHON) scripts/analysis/04_double_ml.py
 
 # ── Robustness ───────────────────────────────────────────
 .PHONY: robustness
 robustness:
 	$(PYTHON) scripts/robustness/placebo_test.py
+	$(PYTHON) scripts/robustness/placebo_dml.py
 	$(PYTHON) scripts/robustness/delete_events.py
 	$(PYTHON) scripts/robustness/caliper_sensitivity.py
 

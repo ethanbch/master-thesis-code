@@ -13,7 +13,10 @@ import time
 from pathlib import Path
 
 import pandas as pd
+import requests
 import yfinance as yf
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -34,9 +37,23 @@ all_tickers = list(set(add_tickers + stable_tickers + ["^STOXX"]))
 print(f"Tickers to download: {len(all_tickers)}")
 
 # ----------------------------------------------------------
-# 2. BATCH DOWNLOAD
+# 2. CONFIGURATION DE LA SESSION (L'Anti-Ban Yahoo)
 # ----------------------------------------------------------
-BATCH_SIZE = 25
+session = requests.Session()
+# On se fait passer pour un navigateur Chrome standard
+session.headers.update(
+    {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
+)
+# On ajoute un retry automatique au niveau de la requête web si Yahoo renvoie un 429 (Too Many Requests)
+retries = Retry(total=3, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504])
+session.mount("https://", HTTPAdapter(max_retries=retries))
+
+# ----------------------------------------------------------
+# 3. BATCH DOWNLOAD OPTIMISÉ (Correction yfinance 1.2.0)
+# ----------------------------------------------------------
+BATCH_SIZE = 50  # On garde les gros lots
 START_DATE = "2013-01-01"
 END_DATE = "2026-02-28"
 
@@ -48,8 +65,9 @@ for i in range(0, len(all_tickers), BATCH_SIZE):
     batch_num = i // BATCH_SIZE + 1
     n_batches = -(-len(all_tickers) // BATCH_SIZE)
 
-    pause = random.uniform(15, 25)
-    print(f"[{batch_num}/{n_batches}] Waiting {pause:.0f}s ...")
+    # On peut garder une pause assez courte car yfinance 1.2.0 gère son propre anti-ban
+    pause = random.uniform(3, 6)
+    print(f"[{batch_num}/{n_batches}] Waiting {pause:.1f}s ...")
     time.sleep(pause)
 
     print(f"[{batch_num}/{n_batches}] Downloading {len(batch)} tickers ...")
@@ -63,6 +81,8 @@ for i in range(0, len(all_tickers), BATCH_SIZE):
                 end=END_DATE,
                 progress=False,
                 auto_adjust=False,
+                # On a supprimé session=session pour laisser yfinance faire sa magie
+                ignore_tz=True,  # Toujours utile pour les bugs de fuseaux horaires européens
             )
 
             if raw.empty:
@@ -87,7 +107,7 @@ for i in range(0, len(all_tickers), BATCH_SIZE):
             break
 
         except Exception as e:
-            wait_retry = 60 * (attempt + 1)
+            wait_retry = 15 * (attempt + 1)
             print(
                 f"[{batch_num}/{n_batches}] Attempt {attempt + 1}/3 — waiting {wait_retry}s — {e}"
             )
@@ -98,7 +118,7 @@ for i in range(0, len(all_tickers), BATCH_SIZE):
         print(f"[{batch_num}/{n_batches}] Batch permanently failed")
 
 # ----------------------------------------------------------
-# 3. EXPORT
+# 4. EXPORT
 # ----------------------------------------------------------
 out_dir = ROOT / "data" / "intermediate"
 

@@ -33,6 +33,17 @@ print("Loading panel …")
 panel = pd.read_parquet(PANEL_PATH)
 panel["date"] = pd.to_datetime(panel["date"])
 
+# Winsorize Amihud at 1%/99% — keep parquet untouched, apply here before OLS
+_p01 = panel["Amihud"].quantile(0.01)
+_p99 = panel["Amihud"].quantile(0.99)
+panel["Amihud"] = panel["Amihud"].clip(lower=_p01, upper=_p99)
+print(f"  Amihud winsorized at [{_p01:.4f}, {_p99:.4f}]")
+
+_iv_p01 = panel["Idio_Vol"].quantile(0.01)
+_iv_p99 = panel["Idio_Vol"].quantile(0.99)
+panel["Idio_Vol"] = panel["Idio_Vol"].clip(lower=_iv_p01, upper=_iv_p99)
+print(f"  Idio_Vol winsorized at [{_iv_p01:.4f}, {_iv_p99:.4f}]")
+
 print("Loading matched pairs …")
 matches = pd.read_csv(MATCHES_PATH)
 matches["event_date"] = pd.to_datetime(matches["event_date"])

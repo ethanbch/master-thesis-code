@@ -25,8 +25,8 @@ OUT_CSV = ROOT / "data" / "results" / "placebo_results.csv"
 OUT_FIG = ROOT / "figures" / "placebo_distribution.png"
 (ROOT / "figures").mkdir(exist_ok=True)
 
-TRUE_BETA = -0.115
-N_ITER = 500
+TRUE_BETA = -0.0344  # updated DiD estimate (Synchronicity, PanelOLS, full 2026 panel)
+N_ITER = 200  # 200 permutations — sufficient for p-value precision ±0.03
 WINDOW = 12
 RNG_SEED = 42
 
@@ -80,7 +80,7 @@ def build_stacked_panel(placebo_dates: np.ndarray) -> pd.DataFrame:
     if not rows:
         return pd.DataFrame()
     df = pd.concat(rows, ignore_index=True)
-    df = df.dropna(subset=["Synchronicity", "Amihud", "Turnover"])
+    df = df.dropna(subset=["Synchronicity", "Amihud", "Avg_Volume"])
     return df
 
 
@@ -117,7 +117,7 @@ for it in range(N_ITER):
 
     try:
         y = df["Synchronicity"]
-        X = df[["Treat_Post", "Amihud", "Turnover"]]
+        X = df[["Treat_Post", "Amihud", "Avg_Volume"]]
         mod = PanelOLS(y, X, entity_effects=True, time_effects=True, drop_absorbed=True)
         res = mod.fit(cov_type="clustered", cluster_entity=True)
         beta = res.params["Treat_Post"]
@@ -127,7 +127,7 @@ for it in range(N_ITER):
 
     results.append({"iteration": it, "beta_placebo": beta, "p_value": pval})
 
-    if (it + 1) % 50 == 0 or it == 0:
+    if (it + 1) % 10 == 0 or it == 0:
         print(f"  [{it+1:>3}/{N_ITER}]  β_placebo = {beta:+.4f}  (p = {pval:.3f})")
 
 # ── Results ─────────────────────────────────────────────────

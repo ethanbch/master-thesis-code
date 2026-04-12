@@ -64,7 +64,10 @@ if volume_col != "Volume":
 prices["date"] = pd.to_datetime(prices["date"])
 prices["Close"] = pd.to_numeric(prices["Close"], errors="coerce")
 prices["Volume"] = pd.to_numeric(prices["Volume"], errors="coerce")
-prices = prices.dropna(subset=["date", "ticker", "Close"]).copy()
+# Sanitisation stricte : supprime les prix et volumes invalides ou nuls
+# (évite les RuntimeWarning sur np.log et les valeurs d'Amihud négatives)
+prices = prices.dropna(subset=["date", "ticker", "Close", "Volume"]).copy()
+prices = prices[(prices["Close"] > 0) & (prices["Volume"] > 0)].copy()
 prices = prices.sort_values(["ticker", "date"]).reset_index(drop=True)
 
 if MARKET_TICKER not in prices["ticker"].unique():
@@ -85,6 +88,8 @@ prices = prices.sort_values(["ticker", "date"])
 prices["log_ret"] = prices.groupby("ticker")["Close"].transform(
     lambda s: np.log(s / s.shift(1))
 )
+# Remplace les infinis résiduels (ex: prix 0 ayant survécu) par NaN
+prices["log_ret"] = prices["log_ret"].replace([np.inf, -np.inf], np.nan)
 prices = prices.dropna(subset=["log_ret"])
 
 # ============================================================
@@ -153,7 +158,7 @@ for i, ((ticker, month), grp) in enumerate(grouped):
     amihud_raw = amihud_raw.replace([np.inf, -np.inf], np.nan)
     amihud = float(amihud_raw.mean()) * 1e6
 
-    turnover = float(merged["Volume"].mean())
+    avg_volume = float(merged["Volume"].mean())
     date_ref = month.to_timestamp()
 
     results.append(
@@ -164,7 +169,7 @@ for i, ((ticker, month), grp) in enumerate(grouped):
             "Synchronicity": round(synchronicity, 6),
             "Idio_Vol": round(idio_vol, 6),
             "Amihud": round(amihud, 6) if not np.isnan(amihud) else np.nan,
-            "Turnover": round(turnover, 2),
+            "Avg_Volume": round(avg_volume, 2),
             "N_obs": len(merged),
         }
     )

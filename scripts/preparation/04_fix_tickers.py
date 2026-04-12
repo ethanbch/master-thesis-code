@@ -9,6 +9,7 @@ Output: data/intermediate/prices_raw.parquet (enriched)
 """
 
 import random
+import re
 import time
 from pathlib import Path
 
@@ -21,8 +22,14 @@ data_dir = ROOT / "data" / "intermediate"
 # ----------------------------------------------------------
 # 1. LOAD MISSING TICKERS
 # ----------------------------------------------------------
-missing = pd.read_csv(data_dir / "missing_add_tickers.csv")
+missing = pd.read_csv(
+    data_dir / "missing_add_tickers.csv", dtype={"ticker": str, "ric": str}
+)
 prices_existing = pd.read_parquet(data_dir / "prices_raw.parquet")
+
+# Supprimer les artefacts PDF : tickers NaN ou purement numériques (ex: "1.7", "2.0")
+missing = missing.dropna(subset=["ticker"])
+missing = missing[~missing["ticker"].str.fullmatch(r"\d+(\.\d+)?")]
 
 tickers_missing = missing["ticker"].unique().tolist()
 print(f"Missing ADD tickers to fix: {len(tickers_missing)}")
@@ -30,9 +37,46 @@ print(f"Missing ADD tickers to fix: {len(tickers_missing)}")
 # ----------------------------------------------------------
 # 2. TICKER REMAPPING
 # ----------------------------------------------------------
-swiss_remap = {t: t.replace(".S", ".SW") for t in tickers_missing if t.endswith(".S")}
 
-german_remap = {
+
+def _apply_regex_remaps(ticker: str) -> str:
+    """Applique les règles de traduction RIC → Yahoo Finance par regex."""
+    if not isinstance(ticker, str):
+        return ticker
+    # Suisse : .S → .SW
+    ticker = re.sub(r"\.S$", ".SW", ticker)
+    # Nordiques : classe B/A avant .ST, .CO, .HE, .OL
+    # ex: CARLB.CO → CARL-B.CO, BETSb.ST → BETS-B.ST
+    ticker = re.sub(
+        r"([A-Za-z])([BbAa])\.(ST|CO|HE|OL)$",
+        lambda m: f"{m.group(1)}-{m.group(2).upper()}.{m.group(3)}",
+        ticker,
+    )
+    return ticker
+
+
+MANUAL_REMAP = {
+    # France
+    "RENA.PA": "RNO.PA",
+    "AIRP.PA": "AI.PA",
+    "CARR.PA": "CA.PA",
+    "PUBP.PA": "PUB.PA",
+    "ERMT.PA": "ERA.PA",
+    "EPED.PA": "FGR.PA",  # Faurecia → Forvia
+    "AIRF.PA": "AF.PA",  # Air France-KLM
+    "LTEN.PA": "ATE.PA",  # Alten
+    "JCDX.PA": "DEC.PA",  # JCDecaux
+    "NEXI.PA": "NXI.PA",  # Nexity
+    "BICP.PA": "BB.PA",  # Société BIC
+    "SOIT.PA": "SOI.PA",  # Soitec
+    "SOPR.PA": "SOP.PA",  # Sopra Steria
+    "RUBF.PA": "RUI.PA",  # Rubis
+    "NEXS.PA": "NEX.PA",  # Nexans
+    "ISOS.PA": "IPS.PA",  # Ipsos
+    "VLLP.PA": "VK.PA",  # Vallourec
+    "UBIP.PA": "UBI.PA",  # Ubisoft
+    "VLOF.PA": "FR.PA",  # Valeo
+    # Allemagne
     "SAPG.DE": "SAP.DE",
     "BMWG.DE": "BMW.DE",
     "CBKG.DE": "CBK.DE",
@@ -51,43 +95,83 @@ german_remap = {
     "FTKn.DE": "FTK.DE",
     "NDXG.DE": "NDX1.DE",
     "PUMG.DE": "PUM.DE",
-    "JENGN.DE": "JEN.DE",
     "BOSSn.DE": "BOSS.DE",
     "AIXGn.DE": "AIXA.DE",
     "AMV0n.DE": "AM3D.DE",
+    "JENGN.DE": "JEN.DE",
+    "FRAG.DE": "FRA.DE",
+    "MORG.DE": "MOR.DE",
+    "BASFN.DE": "BAS.DE",
+    "DPWGN.DE": "DHL.DE",
+    "LHAG.DE": "LHA.DE",
+    "BASFn.DE": "BAS.DE",
+    "DPWGn.DE": "DHL.DE",
+    "SOWG.DE": "SOW.DE",
+    "DUEG.DE": "DUE.DE",
+    "DEQGn.DE": "DEQ.DE",
+    "WCHG.DE": "WCH.DE",  # Wacker Chemie
+    "EVDG.DE": "EVD.DE",  # CTS Eventim
+    "NEKG.DE": "NEM.DE",  # Nemetschek
+    "RAAG.DE": "RAA.DE",  # Rational AG
+    "COKG.DE": "COK.DE",  # Cancom
+    "HYQGn.DE": "HYQ.DE",  # Hypoport
+    "TLXGn.DE": "TLX.DE",  # Talanx
+    "S92G.DE": "S92.DE",  # SMA Solar Technology
+    "GLJn.DE": "GLJ.DE",  # Grenke
+    "FNTGn.DE": "FNTN.DE",  # Freenet
+    # Grande-Bretagne
+    "WISEa.L": "WISE.L",  # Wise (class A)
+    "GFTU_u.L": "GFTU.L",  # Grafton Group (units)
+    "ECM.L": "RS1.L",  # Electrocomponents → RS Group
+    "TCAPI.L": "TCAP.L",  # TP ICAP
+    "VTYV.L": "VTY.L",  # Vistry Group
+    "SCTS.L": "SCT.L",  # Softcat
+    "CBRO.L": "CBG.L",  # Close Brothers Group
+    "VCTX.L": "VCT.L",  # Victrex
+    "BEZG.L": "BEZ.L",  # Beazley
+    "BALF.L": "BBY.L",  # Balfour Beatty
+    "TRNT.L": "TRN.L",  # Trainline
+    "SHCS.L": "SHC.L",  # Shaftesbury Capital
+    "HAYS.L": "HAS.L",  # Hays
+    "PLUSP.L": "PLUS.L",  # Plus500
+    "JUSTJ.L": "JUST.L",  # Just Group
+    "PAGPA.L": "PAG.L",  # Paragon Banking Group
+    "PAFR.L": "PAF.L",  # Pan African Resources
+    "HOCM.L": "HOC.L",  # Hochschild Mining
+    "OSBO.L": "OSB.L",  # OSB Group (ex-OneSavings Bank)
+    "DC.L": "CURY.L",  # Dixons Carphone → Currys
+    "GPOR.L": "GPE.L",  # Great Portland Estates
+    # Irlande
+    "GL9.I": "GL9.IR",
+    "CRH.I": "CRH.L",
+    # Autriche
+    "VIGR.VI": "VIG.VI",
+    # Luxembourg
+    "SESFd.PA": "SESG.PA",
 }
 
-irish_remap = {t: t.replace(".I", ".IR") for t in tickers_missing if t.endswith(".I")}
-austrian_remap = {
-    t: t.replace(".VI", ".VIE") for t in tickers_missing if t.endswith(".VI")
-}
-luxembourg_remap = {t: t.replace(".PA", ".PA") for t in tickers_missing if "SESFd" in t}
-luxembourg_remap["SESFd.PA"] = "SESG.PA"
-
-all_remaps = {
-    **swiss_remap,
-    **german_remap,
-    **irish_remap,
-    **austrian_remap,
-    **luxembourg_remap,
-}
+# Appliquer d'abord le dictionnaire, puis les regex
+remapped_tickers = []
+for ric in tickers_missing:
+    yahoo = MANUAL_REMAP.get(ric, ric)
+    yahoo = _apply_regex_remaps(yahoo)
+    remapped_tickers.append(yahoo)
 
 # Build download list
 download_map = {}
-for ric in tickers_missing:
-    yahoo = all_remaps.get(ric, ric)
+for ric, yahoo in zip(tickers_missing, remapped_tickers):
     download_map[yahoo] = ric
 
 yahoo_tickers = list(download_map.keys())
-print(f"Tickers to attempt after remapping: {len(yahoo_tickers)}")
-print(f"Swiss remapped  : {len(swiss_remap)}")
-print(f"German remapped : {len(german_remap)}")
-print(f"Irish remapped  : {len(irish_remap)}")
+n_changed = sum(1 for r, y in zip(tickers_missing, remapped_tickers) if r != y)
+print(
+    f"Tickers to attempt after remapping: {len(yahoo_tickers)} ({n_changed} remapped)"
+)
 
 # ----------------------------------------------------------
 # 3. DOWNLOAD REMAPPED TICKERS
 # ----------------------------------------------------------
-BATCH_SIZE = 25
+BATCH_SIZE = 50
 START_DATE = "2013-01-01"
 END_DATE = "2026-02-28"
 
@@ -101,8 +185,8 @@ batches = [
 for batch_num, batch in enumerate(batches, start=1):
     n_batches = len(batches)
 
-    pause = random.uniform(15, 25)
-    print(f"[{batch_num}/{n_batches}] Waiting {pause:.0f}s ...")
+    pause = random.uniform(3, 6)
+    print(f"[{batch_num}/{n_batches}] Waiting {pause:.1f}s ...")
     time.sleep(pause)
     print(f"[{batch_num}/{n_batches}] Downloading {len(batch)} tickers ...")
 
@@ -115,6 +199,7 @@ for batch_num, batch in enumerate(batches, start=1):
                 end=END_DATE,
                 progress=False,
                 auto_adjust=False,
+                ignore_tz=True,
             )
 
             if raw.empty:
@@ -146,7 +231,7 @@ for batch_num, batch in enumerate(batches, start=1):
             break
 
         except Exception as e:
-            wait_retry = 60 * (attempt + 1)
+            wait_retry = 15 * (attempt + 1)
             print(
                 f"[{batch_num}/{n_batches}] Attempt {attempt + 1}/3 — waiting {wait_retry}s — {e}"
             )

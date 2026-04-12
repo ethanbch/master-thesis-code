@@ -1,0 +1,2 @@
+event_type,outcome,method,n_obs,n_treated,n_folds,n_rep,theta,se,pval,ci_lower_95,ci_upper_95,significance
+DELETE,Synchronicity,DoubleML_PLR,1162,581,5,3,0.11888595854156916,0.06619436306075083,0.07249239677915655,-0.010852609037070998,0.24862452612020933,* (10%)

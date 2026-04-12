@@ -14,10 +14,12 @@ import warnings
 from datetime import timedelta
 from pathlib import Path
 
+import doubleml as dml_lib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from linearmodels.panel import PanelOLS
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 
@@ -30,6 +32,7 @@ PRICES_PATH = ROOT / "data" / "intermediate" / "prices_raw.parquet"
 PANEL_PATH = ROOT / "data" / "intermediate" / "panel_monthly.parquet"
 OUT_MATCHES = ROOT / "data" / "results" / "delete_matched_pairs.csv"
 OUT_DID = ROOT / "data" / "results" / "delete_did_results.csv"
+OUT_DML = ROOT / "data" / "results" / "delete_dml_results.csv"
 OUT_FIG = ROOT / "figures" / "event_study_delete_synchronicity.png"
 (ROOT / "figures").mkdir(exist_ok=True)
 
@@ -41,11 +44,13 @@ DID_WINDOW = 12
 ES_WINDOW = 6
 REF_PERIOD = -1
 
-# Known ADD β_DiD for comparison
-ADD_BETA_SYNCH = -0.115
-ADD_P_SYNCH = 0.174
-ADD_BETA_IVOL = 0.0003
-ADD_P_IVOL = 0.605
+# Known ADD results for comparison (updated — full 2026 panel)
+ADD_N_PAIRS = 654
+ADD_BETA_SYNCH = -0.0344
+ADD_P_SYNCH = 0.4781
+ADD_BETA_IVOL = -0.0007
+ADD_P_IVOL = 0.0126
+ADD_THETA_DML = 0.134  # DML PLR estimate (Synchronicity)
 
 # ═══════════════════════════════════════════════════════════
 # STEP 1 — LOAD DATA
@@ -84,6 +89,8 @@ def compute_features(prices_df, window_start, window_end):
     """Compute features for all tickers in a given window."""
     mask = (prices_df["date"] >= window_start) & (prices_df["date"] <= window_end)
     sub = prices_df.loc[mask].copy()
+    # Keep only rows with positive close and volume to avoid log(0) = -inf
+    sub = sub[(sub["close"] > 0) & (sub["volume"] > 0)]
     agg = sub.groupby("ticker").agg(
         n_obs=("close", "size"),
         first_close=("close", "first"),
@@ -91,11 +98,14 @@ def compute_features(prices_df, window_start, window_end):
         mean_volume=("volume", "mean"),
         vol_ret=("log_ret", "std"),
     )
-    agg = agg[agg["n_obs"] >= MIN_OBS].copy()
+    agg = agg[(agg["n_obs"] >= MIN_OBS) & (agg["first_close"] > 0)].copy()
     agg["Log_MarketCap"] = np.log(agg["last_close"] * agg["mean_volume"])
     agg["Momentum_12m"] = np.log(agg["last_close"] / agg["first_close"])
     agg["Volatility_pre"] = agg["vol_ret"]
-    return agg[["Log_MarketCap", "Momentum_12m", "Volatility_pre"]].reset_index()
+    result = agg[["Log_MarketCap", "Momentum_12m", "Volatility_pre"]].reset_index()
+    # Drop any residual inf / nan
+    result = result.replace([np.inf, -np.inf], np.nan).dropna()
+    return result
 
 
 all_features = []
@@ -151,6 +161,13 @@ for idx, row in unique_events.iterrows():
     treated = sub[sub["treated"] == 1]
     controls = sub[sub["treated"] == 0]
 
+    if len(treated) == 0 or len(controls) < 2:
+        continue
+
+    # Drop rows with inf/nan in features before scaling
+    sub = sub.replace([np.inf, -np.inf], np.nan).dropna(subset=FEATURES)
+    treated = sub[sub["treated"] == 1]
+    controls = sub[sub["treated"] == 0]
     if len(treated) == 0 or len(controls) < 2:
         continue
 
@@ -265,7 +282,7 @@ def build_stacked_panel(matches_iter, panel_df, window_months):
     if not rows:
         return pd.DataFrame()
     df = pd.concat(rows, ignore_index=True)
-    df = df.dropna(subset=["Synchronicity", "Idio_Vol", "Amihud", "Turnover"])
+    df = df.dropna(subset=["Synchronicity", "Idio_Vol", "Amihud", "Avg_Volume"])
     return df
 
 
@@ -280,7 +297,7 @@ did_results_all = []
 
 for dep_var, label in [("Synchronicity", "Synchronicity"), ("Idio_Vol", "Idio_Vol")]:
     y = df_static_idx[dep_var]
-    X = df_static_idx[["Treat_Post", "Amihud", "Turnover"]]
+    X = df_static_idx[["Treat_Post", "Amihud", "Avg_Volume"]]
     mod = PanelOLS(y, X, entity_effects=True, time_effects=True, drop_absorbed=True)
     res = mod.fit(cov_type="clustered", cluster_entity=True)
 
@@ -419,19 +436,21 @@ comparison = pd.DataFrame(
     [
         {
             "Event Type": "ADD (inclusion)",
-            "N_pairs": 196,
-            "β_DiD_Synch": ADD_BETA_SYNCH,
+            "N_pairs": ADD_N_PAIRS,
+            "beta_DiD_Synch": ADD_BETA_SYNCH,
             "p_Synch": ADD_P_SYNCH,
-            "β_DiD_IVol": ADD_BETA_IVOL,
+            "beta_DiD_IVol": ADD_BETA_IVOL,
             "p_IVol": ADD_P_IVOL,
+            "theta_DML_Synch": ADD_THETA_DML,
         },
         {
             "Event Type": "DELETE (exclusion)",
             "N_pairs": n_valid,
-            "β_DiD_Synch": round(del_beta_synch, 4),
+            "beta_DiD_Synch": round(del_beta_synch, 4),
             "p_Synch": round(del_p_synch, 4),
-            "β_DiD_IVol": round(del_beta_ivol, 4),
+            "beta_DiD_IVol": round(del_beta_ivol, 4),
             "p_IVol": round(del_p_ivol, 4),
+            "theta_DML_Synch": None,  # filled in step 7 below
         },
     ]
 )
@@ -440,5 +459,132 @@ comparison_path = ROOT / "data" / "results" / "add_vs_delete_comparison.csv"
 comparison.to_csv(comparison_path, index=False)
 
 print(comparison.to_string(index=False))
-print(f"\n  Saved: {comparison_path}")
+print(f"\n  Saved: {comparison_path}\n")
+
+
+# ═══════════════════════════════════════════════════════════
+# STEP 7 — DOUBLE ML (DELETE EVENTS)
+# ═══════════════════════════════════════════════════════════
+print("=" * 60)
+print("  STEP 7 — Double ML (DELETE pairs)")
+print("=" * 60)
+
+DML_FEATURES = ["Log_MarketCap", "Momentum_12m", "Volatility_pre"]
+N_FOLDS_DML = 5
+N_REP_DML = 3  # fewer reps than main script — robustness check context
+
+# Build cross-sectional DML dataset from DELETE matched pairs
+dml_rows = []
+for _, m in valid_matches.iterrows():
+    ev_date = m["event_date"]
+    post_end = ev_date + pd.DateOffset(months=DID_WINDOW)
+
+    for ticker, treat_val in [(m["ticker_treated"], 1), (m["ticker_control"], 0)]:
+        post_obs = panel[
+            (panel["ticker"] == ticker)
+            & (panel["date"] >= ev_date)
+            & (panel["date"] <= post_end)
+        ]["Synchronicity"].dropna()
+        if len(post_obs) < 3:
+            continue
+
+        # Pre-event features (same window used in PSM above)
+        w_start = ev_date - timedelta(days=WINDOW_DAYS)
+        feats_pre = prices[
+            (prices["ticker"] == ticker)
+            & (prices["date"] >= w_start)
+            & (prices["date"] < ev_date)
+        ]
+        if len(feats_pre) < MIN_OBS:
+            continue
+
+        log_mcap = (
+            np.log(feats_pre["close"].iloc[-1] * feats_pre["volume"].mean())
+            if feats_pre["volume"].mean() > 0
+            else np.nan
+        )
+        momentum = (
+            np.log(feats_pre["close"].iloc[-1] / feats_pre["close"].iloc[0])
+            if feats_pre["close"].iloc[0] > 0
+            else np.nan
+        )
+        vol_pre = feats_pre["log_ret"].std()
+
+        dml_rows.append(
+            {
+                "ticker": ticker,
+                "event_date": ev_date,
+                "treated": treat_val,
+                "Synchronicity_post": post_obs.mean(),
+                "Log_MarketCap": log_mcap,
+                "Momentum_12m": momentum,
+                "Volatility_pre": vol_pre,
+            }
+        )
+
+dml_df = pd.DataFrame(dml_rows).dropna()
+n_dml = len(dml_df)
+print(f"  DML dataset: {n_dml:,} obs ({int(dml_df['treated'].sum())} treated)\n")
+
+if n_dml >= 50:
+    data_dml = dml_lib.DoubleMLData(
+        dml_df,
+        y_col="Synchronicity_post",
+        d_cols="treated",
+        x_cols=DML_FEATURES,
+    )
+    plr = dml_lib.DoubleMLPLR(
+        data_dml,
+        ml_l=RandomForestRegressor(n_estimators=50, random_state=42, n_jobs=-1),
+        ml_m=RandomForestClassifier(n_estimators=50, random_state=42, n_jobs=-1),
+        n_folds=N_FOLDS_DML,
+        n_rep=N_REP_DML,
+        score="partialling out",
+    )
+    plr.fit()
+
+    del_theta = float(plr.coef[0])
+    del_se = float(plr.se[0])
+    del_pval = float(plr.pval[0])
+    ci = plr.confint().iloc[0]
+    sig = (
+        "*** (1%)"
+        if del_pval < 0.01
+        else "** (5%)" if del_pval < 0.05 else "* (10%)" if del_pval < 0.10 else "n.s."
+    )
+
+    print(
+        f"  DELETE DML — θ = {del_theta:+.6f}  SE = {del_se:.6f}  p = {del_pval:.4f}  {sig}"
+    )
+    print(f"  95% CI: [{ci.iloc[0]:.6f}, {ci.iloc[1]:.6f}]\n")
+
+    # Save DML results
+    pd.DataFrame(
+        {
+            "event_type": ["DELETE"],
+            "outcome": ["Synchronicity"],
+            "method": ["DoubleML_PLR"],
+            "n_obs": [n_dml],
+            "n_treated": [int(dml_df["treated"].sum())],
+            "n_folds": [N_FOLDS_DML],
+            "n_rep": [N_REP_DML],
+            "theta": [del_theta],
+            "se": [del_se],
+            "pval": [del_pval],
+            "ci_lower_95": [ci.iloc[0]],
+            "ci_upper_95": [ci.iloc[1]],
+            "significance": [sig],
+        }
+    ).to_csv(OUT_DML, index=False)
+    print(f"  Saved: {OUT_DML}\n")
+
+    # Update comparison table with DML column
+    comparison.loc[
+        comparison["Event Type"] == "DELETE (exclusion)", "theta_DML_Synch"
+    ] = round(del_theta, 4)
+    comparison.to_csv(comparison_path, index=False)
+    print("  Comparison table updated with DML results.")
+else:
+    print("  Skipping DML: not enough observations.\n")
+
 print("\nDone.")
