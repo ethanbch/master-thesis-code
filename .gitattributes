@@ -1,13 +1,14 @@
-# 1. On dit que les Notebooks sont du Python (et pas du JSON/HTML)
+# On garde la règle qui a fonctionné pour les notebooks
 *.ipynb linguist-language=Python
 
-# 2. On exclut totalement les dossiers de données et de résultats des stats
-data/** linguist-vendored
-figures/** linguist-vendored
-
-# 3. On force l'exclusion de TOUT l'HTML (souvent des graphiques ou de la doc)
+# On dit à GitHub d'ignorer TOTALEMENT l'HTML pour les stats
 *.html linguist-vendored
 *.htm linguist-vendored
+
+# On exclut spécifiquement les dossiers qui peuvent contenir du bruit
+figures/** linguist-vendored
+data/** linguist-vendored
+scripts/visualization/** linguist-vendored
 
 # 4. Si tu as des fichiers de config volumineux
 pyproject.toml linguist-generated
