@@ -1,0 +1,3 @@
+event_type,ticker,name,country,event_date,n_pre,n_post,synch_pre,synch_post,delta_synch,idio_pre,idio_post,delta_idio
+ADD,WOSG.L,BJDQQ II WATCHES OF SWITZERLAND GROUP,GB,2021-08-01,12,13,-3.4402,-0.837,2.6033,0.029137,0.021336,-0.007801
+DELETE,GLJ.DE,BYRKP GLJn. GRENKE N,DE,2020-08-03,12,13,-0.5663,-3.7659,-3.1996,0.019636,0.043214,0.023578
