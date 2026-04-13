@@ -1,1 +1,14 @@
+# 1. On dit que les Notebooks sont du Python (et pas du JSON/HTML)
 *.ipynb linguist-language=Python
+
+# 2. On exclut totalement les dossiers de données et de résultats des stats
+data/** linguist-vendored
+figures/** linguist-vendored
+
+# 3. On force l'exclusion de TOUT l'HTML (souvent des graphiques ou de la doc)
+*.html linguist-vendored
+*.htm linguist-vendored
+
+# 4. Si tu as des fichiers de config volumineux
+pyproject.toml linguist-generated
+Makefile linguist-generated

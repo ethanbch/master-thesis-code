@@ -23,6 +23,7 @@ prep:
 # ── Analysis ─────────────────────────────────────────────
 .PHONY: analysis
 analysis:
+	$(PYTHON) scripts/analysis/00_eda_and_checks.py
 	$(PYTHON) scripts/analysis/01_matching.py
 	$(PYTHON) scripts/analysis/02_did_estimation.py
 	$(PYTHON) scripts/analysis/03_event_study.py
