@@ -8,3 +8,22 @@ wheels/
 
 # Virtual environments
 .venv
+.DS_Store
+biblio.md
+*.tex
+
+# Project-specific generated files
+plandetails.md
+references.bib
+
+# LaTeX build artifacts for thesis
+thesis.aux
+thesis.bbl
+thesis.blg
+thesis.fdb_latexmk
+thesis.fls
+thesis.log
+thesis.out
+thesis.pdf
+thesis.synctex.gz
+thesis.toc
