@@ -50,7 +50,7 @@ ADD_BETA_SYNCH = -0.0344
 ADD_P_SYNCH = 0.4781
 ADD_BETA_IVOL = -0.0007
 ADD_P_IVOL = 0.0126
-ADD_THETA_DML = 0.134  # DML PLR estimate (Synchronicity)
+ADD_THETA_DML = 0.1187  # DML PLR estimate (Synchronicity)
 
 # ═══════════════════════════════════════════════════════════
 # STEP 1 — LOAD DATA

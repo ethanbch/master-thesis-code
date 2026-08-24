@@ -131,14 +131,14 @@ def build_stacked_panel(matches: pd.DataFrame) -> pd.DataFrame:
     if not rows:
         return pd.DataFrame()
     df = pd.concat(rows, ignore_index=True)
-    return df.dropna(subset=["Synchronicity", "Amihud", "Turnover"])
+    return df.dropna(subset=["Synchronicity", "Amihud", "Avg_Volume"])
 
 
 def run_did(df: pd.DataFrame) -> dict:
     """Estimate static DiD and return Treat_Post statistics."""
     df_idx = df.set_index(["entity", "time_id"])
     y = df_idx["Synchronicity"]
-    X = df_idx[["Treat_Post", "Amihud", "Turnover"]]
+    X = df_idx[["Treat_Post", "Amihud", "Avg_Volume"]]
     mod = PanelOLS(y, X, entity_effects=True, time_effects=True, drop_absorbed=True)
     res = mod.fit(cov_type="clustered", cluster_entity=True)
     ci = res.conf_int().loc["Treat_Post"]
